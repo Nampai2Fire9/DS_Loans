@@ -20,6 +20,8 @@ library(ROCR)
 
 # Import and add default/delinquency field 
 ploan_api = read.csv('prosperLoanData.csv')
+# make copy of ploan_api:  keeps original fields in case any are removed 
+# ploan_api2 = read.csv('prosperLoanData.csv')
 defdq = ifelse(ploan_api$LoanStatus %in% c("Completed", "Current", "FinalPaymenteInProgress"), 0, 1)  
 ploan_api$defdq = defdq
 ploan_api$defdq_fac = as.factor(ploan_api$defdq)
@@ -28,7 +30,7 @@ ploan_api$defdq_fac = as.factor(ploan_api$defdq)
 
 ploan_api <- ploan_api[ ,colSums(is.na(ploan_api) | ploan_api=='') < nrow(ploan_api)*0.70]
 
-# Run thorugh data dictionary and choose first draft of categorical and continuous variables
+# First draft of categorical and continuous variables 
 pcat = c('Term','ListingCategory..numeric.','BorrowerState', 'Occupation', 
          'EmploymentStatus', 'IsBorrowerHomeowner', 'IncomeVerifiable')
 num_cat = length(pcat)
@@ -39,10 +41,10 @@ pcont = c('BorrowerAPR', 'ProsperRating..numeric.', 'EmploymentStatusDuration', 
           'StatedMonthlyIncome','LoanCurrentDaysDelinquent', 'PercentFunded', 'InvestmentFromFriendsCount', 'Investors')
 num_cont=length(pcont)
 
-
 #---------Refine CONTINUOUS variables------------ 
+summary(ploan_api[,pcont])  # see that IncomeRange need to be converted to numeric to be meaningful. 
 
-#Bucket Income Range into numbers
+#Bucket Income Range 
 ir_range = as.data.frame(ploan_api$IncomeRange)
 ir_range$defdq=ploan_api$defdq
 colnames(ir_range) = c('IncomeRange', 'defdq')
@@ -74,7 +76,7 @@ pcont = pcont[-which(pcont=='IncomeRange')]
 ploan_api$APR_Bucket = cut(ploan_api$BorrowerAPR, c(0, 0.15, 0.21, 0.23, 0.28, 0.52))
 ploan_api$DTIBucket = cut(ploan_api$DebtToIncomeRatio, c(0, 0.14, 0.22, 0.32, 10)) 
 
-  # Create mapping tables for APR & DTI buckets
+# Create mapping tables for buckets
 rm(bucket.map)
 bucket.map = data.frame(unique(ploan_api$APR_Bucket));  bucket.map
 bucket.map$val = c(0.21, 0.15, 0.28, 0.52, 0.23, '')
@@ -107,8 +109,14 @@ ggplot(ploan_api, aes(x=DTIBucket, y=LoanOriginalAmount, fill=defdq_fac))+
 #---------Refine CATEGORICAL variables------------ 
 
 # Categorical:  Too many categories?  
-str(ploan_api[,pcat])    # too many categories for Borrower State & Occupation 
-
+num_cat = length(pcat)
+test1 = matrix('', num_cat,2)
+for (i in 1:num_cat) { 
+  field_name = pcat[i]
+  test1[i,1] = field_name
+  test1[i,2] = length(unique(ploan_api[, field_name]))
+}
+test1   # can see too many categories for BorrowerState and Occupation.  
 # Reduce State to Region.  use mapping file
 state_map = read.csv('States_abbrev_region.csv')
 colnames(state_map) = c('State', 'BorrowerState', 'Region')
@@ -140,10 +148,10 @@ ploan_api$Occ1 = as.factor(ploan_api$Occ1)
 
 # add Occ1 & remove Occupation from pcat 
 pcat = c(pcat, 'Occ1')  
-pcat = pcat[-which(pcat=='Occupation')] 
+pcat = pcat[-which(pcat=='Occupation')]
 
 #too many values for BorrowerState. replace with Region
-pcat = pcat[-which(pcat=='BorrowerState')] 
+pcat = pcat[-which(pcat=='BorrowerState')]
 pcat = c(pcat, 'Region')
 
 #-- LOAN PURPOSE: Prosper categorizes loan by number in 'ListingCategory..numeric.'  Remap to og names
@@ -239,6 +247,15 @@ bin_buckets = aggregate(ploan.sub$defdq, by=list(ploan.sub$bin_assign), mean)
 bin_buckets$bin_marker = bin_marker[1:12]
 
 #------ Tables with aggregated default amounts and estimated yields:  Categorical variables 
+rm(dt)
+dt = aggregate(ploan_api$defdq, by=list(ploan_api$IncomeRangeMap), 
+               FUN=function(x) c(mn=percent(mean(x)), n=length(x)))
+dt = do.call(data.frame, aggregate(ploan_api$defdq, by=list(ploan_api$IncomeRangeMap), 
+                                   FUN=function(x) c(mn=mean(x), n=length(x))))
+colnames(dt) = c('Field','Mean','Count')
+dt$Mean = as.numeric(dt$Mean)
+dt = dt[order(-dt$Mean),]
+dt$Mean = percent(dt$Mean)
 
 rm(dt)
 for (i in 1:num_cat) {
@@ -346,7 +363,7 @@ rm(chart_frame2)
 
 #Categorical Bivariate:  Grid of stacked charts (by origination amount) 
 
-# Presentation: reduce to six categorical variables
+# for sake of presentation, reduce to six categorical variables
 pcat2 = pcat[-2]
 
 rm(chart_frame1)
@@ -440,7 +457,7 @@ ggplot(cramer.frame,aes(x=Field, y=CramerV, fill=Field)) +
 
 
 
-#--------Select Multivariate Visuals-------------
+#--------Multivariate Visuals-------------
 
 #----------- Estimatd Yields vs. Borrower Rate and Prosper Rating Scatter Plot 
 
@@ -456,6 +473,8 @@ ggplot(ploan.sub, aes(y = EstimatedEffectiveYield, x = BorrowerAPR,
   labs(title = "Estimated Effective Yield vs. Borrower APR")
 
 
+
+
 #------- Run through Random Forest:  Variable Importance  
 
 # Reduce variable list
@@ -466,7 +485,7 @@ pcont_lagrid = c('ProsperRating..numeric.', 'CreditScoreRangeLower', 'OpenRevolv
                  'IncomeRangeMap','OpenCreditLines','EmploymentStatusDuration','PublicRecordsLast10Years')
 num_contla = length(pcont_lagrid)
 
-# Presentation:  New Bivariate Grid of defaults 
+# New Bivariate Grid of defaults 
 
 #Continuous:  Counts:   Grid of Bivariate Histograms
 chart_frame1 = list() 
@@ -499,8 +518,9 @@ for (i in 1:num_contla) {
 }
 do.call(grid.arrange, c(chart_frame1, list(ncol=3, top=textGrob("Continuous: Bivariate Histogram by Loan Amount against Default"))))
 
-# -------- MODEL FIT-----------------
-#turn cont variables to categorical 
+#-------------------MODELING DEFAULT------------
+
+# Set up initial set of data to model; 
 
 rm(pcont2) 
 pcont2 = c('ProsperRating..numeric.', 'OpenRevolvingAccounts','IncomeRangeMap',
@@ -508,6 +528,7 @@ pcont2 = c('ProsperRating..numeric.', 'OpenRevolvingAccounts','IncomeRangeMap',
 pcont2
 
 # Grab number of unique values per column
+
 rm(ploan.sub) 
 ploan.sub = ploan_api[, pcont2]
 apply(ploan.sub, 2, function(x) length(unique(x)))   #see that Revolving Accounts, Credit Lines, Employment duration & DTI need bucketing
@@ -536,67 +557,99 @@ levels(ploan.sub$Purpose) = c(levels(ploan.sub$Purpose),'999')
 ploan.sub$Purpose[is.na(ploan.sub$Purpose)] = '999'
 
 # run thru RandomForest
-# Grab variable importance for entire set
+# Grab variable importance for entire set.
 
+set.seed(3)
 rf_fit = randomForest(defdq~., data=ploan.sub, importance=TRUE, ntree=100)
 varImpPlot(rf_fit, type=2)
 
+#----RUN MODEL COMPARISON-----
+
+#final output will be ROC curve comparison of three models:  RF, LogReg, and GBM 
+
+roc.comp = function(seed,test, train, train.feat, test.feat, train.label, test.label, titlename) {
+  
+  set.seed(seed)
+  
+  # Random Forest
+  rf.fit = randomForest(defdq~., data=train, importance=TRUE, ntree=100)
+  rf.pred = predict(rf.fit, test, type='prob')
+  rf.comp = prediction(rf.pred[,2], test$defdq)
+  rf.perf = performance(rf.comp, 'tpr','fpr')
+  rf.perfauc = performance(rf.comp, measure='auc')
+  auc.rf = round(rf.perfauc@y.values[[1]],3)
+  print(auc.rf)
+  
+  #Logistic Regression
+  glm.fit = glm(defdq~., data=train, family=binomial('logit'))
+  glm.pred = predict(glm.fit, test, type='response')
+  glm.comp = prediction(glm.pred, test$defdq)
+  glm.perf = performance(glm.comp, 'tpr','fpr')
+  glm.perfauc = performance(glm.comp, measure='auc')
+  auc.glm = round(glm.perfauc@y.values[[1]], 3)
+  print(auc.glm)
+  # Gradient Boosting
+  gbm.fold = train(x=train.feat, y=train.label, method='gbm', trControl=fitControl, verbose=FALSE)  
+  boost.pred = predict(gbm.fold, test, type='prob', n.trees=100)
+  comp.gbm = prediction(boost.pred[,2], test.label)
+  perf.gbm = performance(comp.gbm, 'tpr','fpr')
+  auc.gbmobj = performance(comp.gbm, measure = 'auc')
+  auc.gbm = round(auc.gbmobj@y.values[[1]], 3)
+  print(auc.gbm)
+  
+  # plot curves
+  plot(perf.gbm, xlim=c(0,1), ylim=c(0,1), lwd=3, lty=1, col='dodgerblue')
+  plot(glm.perf, lwd=3, lty=2, col='brown3', add=TRUE)
+  plot(rf.perf, lwd=2, col='darkcyan', add=TRUE)
+  title(titlename)
+  legend('bottomright', 
+         paste(c('Gradient Boosting, AUC=','Logistic Regression, AUC=', 'Random Forest, AUC='),
+               c(auc.gbm, auc.glm, auc.rf)),
+         col=c('dodgerblue','brown3', 'darkcyan'),
+         lty=c(1,2,1), lwd=c(3,3,2))
+}
+
+# Run Full Model
 # sample train/test split : later use k-fold CV 
 indexes = sample(1:nrow(ploan.sub), size=0.2*nrow(ploan.sub))
 test = ploan.sub[indexes,]
 train = ploan.sub[-indexes,]
-# run through RandomForest and produce ROCR curve for first set of variables. 
-rf_fit2 = randomForest(defdq~., data=train, importance=TRUE, ntree=100)
-rf_pred = predict(rf_fit2, test, type='prob')
-comp.rf = prediction(rf_pred[,2], test$defdq)
-pred.rf = performance(comp.rf, 'tpr','fpr')
-pred.rf2 = performance(comp.rf, measure='auc')
-auc.rf = round(pred.rf2@y.values[[1]], 3)  # pulls the AUC value
-plot(pred.rf, xlim=c(0,1), ylim=c(0,1), lwd=3, col='cadetblue4')
+roc.comp(3, test, train, train.feat, test.feat, train.label, test.label, 'ROC Curves: FULL MOdEL')
 
-# run Logistic Regression as a model comparison
-rm(glm.fit)
-glm.fit = glm(defdq~., data=train, family=binomial('logit'))
-glm.pred = predict(glm.fit, test, type='response')
-comp.glm = prediction(glm.pred, test$defdq)
-perf.glm = performance(comp.glm, 'tpr','fpr')
-perf.glm2 = performance(comp.glm, measure='auc')
-auc.glm = round(perf.glm2@y.values[[1]], 3) 
-plot(perf.glm, lty=2, add=TRUE, lwd=3, col='brown3')
-title('ROCR Curves: RF vs. Logistic Regression')
-legend('bottomright', paste(c('Random Forest, AUC=','Logistic Regression, AUC='),c(auc.rf, auc.glm)),
-       col=c('cadetblue4','brown3'),
-       lty=c(1,2), lwd=c(3,3))
+#---- Reduce to 8 variables and Re-fit Top 8 variables
+ploan.sub[,c('IncomeVerifiable', 'Term', 'IsBorrowerHomeowner', 'DTIBucket')] = NULL
+# setup train/test data for glm & rf, and careet
+rm(test,train)
+test = ploan.sub[indexes,]
+train = ploan.sub[-indexes,]
+rm(train.feat, test.feat, train.label, test.label)
+train.feat = train[,!names(train)=='defdq']
+test.feat = test[, !names(test)=='defdq']
+train.label = train$defdq
+test.label = test$defdq
+
+# Caret doesn't work with characters/integers:  turn Propser Rating, IncomeRangeMap, and Term into numeric
+train.feat$ProsperRating..numeric. = as.numeric(train.feat$ProsperRating..numeric.); str(train.feat) 
+train.feat$IncomeRangeMap = as.numeric(train.feat$IncomeRangeMap)
+# Generate ROC for top 8
+roc.comp(3, test, train, train.feat, test.feat, train.label, test.label, 'ROC Curves: Top 8')
 
 
-# Re-sample train/test data set and run again 
-rm(test, indexes, train)
-indexes = sample(1:nrow(ploan.sub), size=0.4*nrow(ploan.sub))
+#---- Re-fit with Top 6 
+ploan.sub[,c('IncomeRangeMap','EmploymentStatus')] = NULL
+
+rm(test,train)
 test = ploan.sub[indexes,]
 train = ploan.sub[-indexes,]
 
+rm(train.feat, test.feat, train.label, test.label)
+train.feat = train[,!names(train)=='defdq']
+test.feat = test[, !names(test)=='defdq']
+train.label = train$defdq
+test.label = test$defdq
 
-#---  Take out some of the variables and re-run 
-ploan.sub[,c('IncomeVerifiable', 'Term', 'IsBorrowerHomeowner', 'DTIBucket', 'EmploymentStatus')] = NULL
+# Caret doesn't work with characters/integers:  turn Propser Rating, IncomeRangeMap, and Term into numeric
+train.feat$ProsperRating..numeric. = as.numeric(train.feat$ProsperRating..numeric.); str(train.feat) 
 
-#re-fit RF model on smaller feature set 
-rf.fit3 = randomForest(defdq~., data=train, importance=TRUE, ntree=100)
-rf.pred3 = predict(rf.fit3, test, type='prob')
-rf.comp3 = prediction(rf.pred3[,2], test$defdq)
-rf.perf3 = performance(rf.comp3, 'tpr','fpr')
-rf.perfauc = performance(rf.comp3, measure='auc')
-auc.rf3 = round(rf.perfauc@y.values[[1]],3)
-plot(rf.perf, xlim=c(0,1), ylim=c(0,1), lwd=3, col='cadetblue4')
-
-glm.fit3 = glm(defdq~., data=train, family=binomial('logit'))
-glm.pred3 = predict(glm.fit3, test, type='response')
-glm.comp3 = prediction(glm.pred3, test$defdq)
-glm.perf3 = performance(glm.comp3, 'tpr','fpr')
-glm.perfauc3 = performance(glm.comp3, measure='auc')
-auc.glm3 = round(glm.perfauc3@y.values[[1]], 3)
-auc.glm3
-plot(glm.perf3, lwd=3, lty=2, col='brown3', add=TRUE)
-title('ROC Curve: RF vs. Logistic: Small Set')
-legend('bottomright', paste(c('Random Forest AUC =', 'Logistic Regression AUC='), 
-                            c(auc.rf3, auc.glm3)), lty=c(1,2), lwd=c(3,3), col=c('cadetblue4','brown3'))
-
+# Generate ROC for top 6
+roc.comp(3, test, train, train.feat, test.feat, train.label, test.label, 'ROC Curves: Top 6')
