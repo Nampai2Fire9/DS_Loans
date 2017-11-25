@@ -1,6 +1,5 @@
 #  EDA on Prosper Loan API data 
 
-
 library(caret)
 library(doSNOW)
 library(rpart)
@@ -567,6 +566,9 @@ varImpPlot(rf_fit, type=2)
 
 #final output will be ROC curve comparison of three models:  RF, LogReg, and GBM 
 
+#load package to compute AUC for Precision-Recall curve
+require(pracma) 
+
 roc.comp = function(seed,test, train, train.feat, test.feat, train.label, test.label, titlename) {
   
   set.seed(seed)
@@ -578,6 +580,16 @@ roc.comp = function(seed,test, train, train.feat, test.feat, train.label, test.l
   rf.perf = performance(rf.comp, 'tpr','fpr')
   rf.perfauc = performance(rf.comp, measure='auc')
   auc.rf = round(rf.perfauc@y.values[[1]],3)
+  # Compute Precision-Recall Curve data 
+  rf.perfpr = performance(glm.comp, 'prec', 'rec')
+  rf_prx = rf.perfpr@x.values[[1]]
+  rf_pry = rf.perfpr@y.values[[1]]
+  rf.perfpr2 = data.frame(rf_prx, rf_pry)
+  rf.perfpr2 = rf.perfpr2[-which(is.na(rf.perfpr2$rf_pry)),]
+  colnames(rf.perfpr2) = c(rf.perfpr@x.name, rf.perfpr@y.name)
+  auc.rf.pr = round(trapz(rf.perfpr2[,rf.perfpr@x.name], rf.perfpr2[,rf.perfpr@y.name]),3)
+  print(c('AUC RF', auc.rf, auc.rf.pr))
+  
   print(auc.rf)
   
   #Logistic Regression
@@ -587,38 +599,80 @@ roc.comp = function(seed,test, train, train.feat, test.feat, train.label, test.l
   glm.perf = performance(glm.comp, 'tpr','fpr')
   glm.perfauc = performance(glm.comp, measure='auc')
   auc.glm = round(glm.perfauc@y.values[[1]], 3)
-  print(auc.glm)
+  # Compute Precision-Recall Curve data 
+  glm.perfpr = performance(glm.comp, 'prec', 'rec')
+  glm_prx = glm.perfpr@x.values[[1]]
+  glm_pry = glm.perfpr@y.values[[1]]
+  glm.perfpr2 = data.frame(glm_prx, glm_pry)
+  glm.perfpr2 = glm.perfpr2[-which(is.na(glm.perfpr2$glm_pry)),]
+  colnames(glm.perfpr2) = c(glm.perfpr@x.name, glm.perfpr@y.name)
+  auc.glm.pr = round(trapz(glm.perfpr2[,glm.perfpr@x.name], glm.perfpr2[,glm.perfpr@y.name]), 3)
+  print(c('AUC Logistic',auc.glm, auc.glm.pr))
+  
   # Gradient Boosting
+  fitControl <- trainControl(method = "repeatedcv", number = 4, repeats = 4)
   gbm.fold = train(x=train.feat, y=train.label, method='gbm', trControl=fitControl, verbose=FALSE)  
   boost.pred = predict(gbm.fold, test, type='prob', n.trees=100)
-  comp.gbm = prediction(boost.pred[,2], test.label)
-  perf.gbm = performance(comp.gbm, 'tpr','fpr')
-  auc.gbmobj = performance(comp.gbm, measure = 'auc')
-  auc.gbm = round(auc.gbmobj@y.values[[1]], 3)
-  print(auc.gbm)
+  gbm.comp = prediction(boost.pred[,2], test.label)
+  gbm.perf = performance(gbm.comp, 'tpr','fpr')
+  gbm.perfauc = performance(gbm.comp, measure = 'auc')
+  auc.gbm = round(gbm.perfauc@y.values[[1]], 3)
+  
+  # Compute Precision-Recall Curve data 
+  gbm.perfpr = performance(gbm.comp, 'prec', 'rec')
+  gbm_prx = gbm.perfpr@x.values[[1]]
+  gbm_pry = gbm.perfpr@y.values[[1]]
+  gbm.perfpr2 = data.frame(gbm_prx, gbm_pry)
+  gbm.perfpr2 = gbm.perfpr2[-which(is.na(gbm.perfpr2$gbm_pry)),]
+  colnames(gbm.perfpr2) = c(gbm.perfpr@x.name, gbm.perfpr@y.name)
+  auc.gbm.pr = round(trapz(gbm.perfpr2[,gbm.perfpr@x.name], gbm.perfpr2[,gbm.perfpr@y.name]),3)
+  print(c('AUC GBM',auc.gbm, auc.gbm.pr))
   
   # plot curves
-  plot(perf.gbm, xlim=c(0,1), ylim=c(0,1), lwd=3, lty=1, col='dodgerblue')
+  plot(gbm.perf, xlim=c(0,1), ylim=c(0,1), lwd=3, lty=1, col='dodgerblue')
   plot(glm.perf, lwd=3, lty=2, col='brown3', add=TRUE)
   plot(rf.perf, lwd=2, col='darkcyan', add=TRUE)
-  title(titlename)
-  legend('bottomright', 
+  title(c('ROC Curve',titlename))
+  legend('bottomright', xjust=1, yjust=1,
          paste(c('Gradient Boosting, AUC=','Logistic Regression, AUC=', 'Random Forest, AUC='),
                c(auc.gbm, auc.glm, auc.rf)),
          col=c('dodgerblue','brown3', 'darkcyan'),
-         lty=c(1,2,1), lwd=c(3,3,2))
+         lty=c(1,2,1), lwd=c(3,3,2), bty='n')
+  
+  plot(gbm.perfpr, xlim=c(0,1), ylim=c(0,1), lwd=3, lty=1, col='dodgerblue')
+  plot(glm.perfpr,  lwd=3, lty=2, col='brown3', add=TRUE)
+  plot(rf.perfpr, lwd=2, lty=1, col='darkcyan', add=TRUE)
+  #title(titlename)
+  title(c('Precision Recall', titlename))
+  legend(1,1, xjust=0.5, yjust=1,
+         paste(c('Gradient Boosting, AUC=', 'Logistic Regression, AUC=', 'Random Forest, AUC='),
+               c(auc.gbm.pr,auc.glm.pr, auc.rf.pr)),
+         col=c('dodgerblue','brown3', 'darkcyan'), 
+         lty=c(1,2,1), lwd=c(3,3,2), bty='n')
 }
 
 # Run Full Model
 # sample train/test split : later use k-fold CV 
 indexes = sample(1:nrow(ploan.sub), size=0.2*nrow(ploan.sub))
+# train/test split for glm & rf in caret 
+rm(test,train)
 test = ploan.sub[indexes,]
 train = ploan.sub[-indexes,]
+rm(train.feat, test.feat, train.label, test.label)
+train.feat = train[,!names(train)=='defdq']
+test.feat = test[, !names(test)=='defdq']
+train.label = train$defdq
+test.label = test$defdq
+
+train.feat$ProsperRating..numeric. = as.numeric(train.feat$ProsperRating..numeric.); str(train.feat) 
+train.feat$IncomeRangeMap = as.numeric(train.feat$IncomeRangeMap)
+train.feat$Term = as.factor(train.feat$Term)
+
 roc.comp(3, test, train, train.feat, test.feat, train.label, test.label, 'ROC Curves: FULL MOdEL')
 
 #---- Reduce to 8 variables and Re-fit Top 8 variables
-ploan.sub[,c('IncomeVerifiable', 'Term', 'IsBorrowerHomeowner', 'DTIBucket')] = NULL
-# setup train/test data for glm & rf, and careet
+ploan.sub[,c('IncomeVerifiable', 'Term', '#IsBorrowerHomeowner', 'DTIBucket')] = NULL
+# setup train/test data for glm & rf, and caret
 rm(test,train)
 test = ploan.sub[indexes,]
 train = ploan.sub[-indexes,]
@@ -632,7 +686,7 @@ test.label = test$defdq
 train.feat$ProsperRating..numeric. = as.numeric(train.feat$ProsperRating..numeric.); str(train.feat) 
 train.feat$IncomeRangeMap = as.numeric(train.feat$IncomeRangeMap)
 # Generate ROC for top 8
-roc.comp(3, test, train, train.feat, test.feat, train.label, test.label, 'ROC Curves: Top 8')
+roc.comp(3, test, train, train.feat, test.feat, train.label, test.label, 'Top 8')
 
 
 #---- Re-fit with Top 6 
@@ -652,4 +706,4 @@ test.label = test$defdq
 train.feat$ProsperRating..numeric. = as.numeric(train.feat$ProsperRating..numeric.); str(train.feat) 
 
 # Generate ROC for top 6
-roc.comp(3, test, train, train.feat, test.feat, train.label, test.label, 'ROC Curves: Top 6')
+roc.comp(3, test, train, train.feat, test.feat, train.label, test.label, 'Top 6')
