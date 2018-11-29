@@ -41,9 +41,7 @@ from sklearn.metrics import auc, accuracy_score, precision_score, recall_score, 
 from sklearn.preprocessing import RobustScaler  #scales different variables to be comparable. 
 from sklearn.linear_model import LinearRegression as LinReg, LogisticRegression as LogReg
 from sklearn.tree import DecisionTreeClassifier as DecTree
-from sklearn.ensemble import RandomForestClassifier as RFC, GradientBoostingClassifier as GBC, AdaBoostClassifier as ABC
 from sklearn.naive_bayes import GaussianNB
-from sklearn import svm
 from sklearn.cross_validation import cross_val_predict, cross_val_score, KFold 
 
 X = twcc.drop('defdq', axis=1)
