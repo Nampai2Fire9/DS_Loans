@@ -7,10 +7,10 @@ Data Used:
 
 After checking for null values and extreme outliers, we shorten the default name and one-hot encode the values for sex, education, and marriage. Using marriage as an example: 
 
-'''
+```
 twcc = pd.read_csv('UCI_Credit_Card.csv')
 twcc.rename(columns={'default.payment.next.month':'defdq'}, inplace=True)
 twcc['married'] = (twcc.MARRIAGE==1).astype('int')
-'''
+```
 
 test
