@@ -41,3 +41,11 @@ robscale = RobustScaler()
 X = robscale.fit_transform(X)
 x_train, x_test, y_train, y_test = TTS(X, Y, random_state=123, test_size=0.2, stratify=Y)
 ```
+
+After fitting logistic regression, naive Bayes, and a decision tree on default parameters, we compare the accuracy results.
+
+![accuracy_scores1_201811](https://user-images.githubusercontent.com/21150315/49293562-5c2b0e80-f465-11e8-9aa1-6d4c9e4007a6.png)
+
+Here we can see logistic regression having the best accuracy and precision rates, while recall is highest under Naive Bayes. Options for tuning the the logistic regression and naive bayes are limited so we focus on tuning our Decision Tree model. 
+
+
