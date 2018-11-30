@@ -34,7 +34,7 @@ twcc['married'] = (twcc.MARRIAGE==1).astype('int')
 
 A quick scan of the data shows the label/response variable for default is skewed about 75-25% in favor on non-default, which is very common. While this is actually a very high default rate, the response here is still considered imbalanced, which will have implications for how we measure the performance of our models. 
 
-![defdq_value_counts_201811](https://user-images.githubusercontent.com/21150315/49296093-30f7ed80-f46c-11e8-99c2-cdd2cb3de8b9.PNG)
+<img src="image/defdq_value_counts_201811.PNG" width="50"> 
 
 In addition to one-hot encoding, we scale the continuous variables through the 'RobustScaler' package from `sklearn.preprocessing`. For illustration purposes, we will run a simple train-test split. To further ensure the robustness of the model, we would use k-fold cross validation (packages included above). 
 
@@ -48,7 +48,7 @@ x_train, x_test, y_train, y_test = TTS(X, Y, random_state=123, test_size=0.2, st
 
 After fitting logistic regression, naive Bayes, and a decision tree on default parameters, we compare the accuracy results.
 
-![accuracy_scores1_201811](https://user-images.githubusercontent.com/21150315/49293562-5c2b0e80-f465-11e8-9aa1-6d4c9e4007a6.png)
+<img src="image/accuracy_scores1_201811.png" width="50"> 
 
 Here we can see logistic regression having the best accuracy and precision rates, while recall is highest under Naive Bayes. Options for tuning the the logistic regression and naive bayes are limited so we focus on tuning our Decision Tree model. 
 
