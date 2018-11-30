@@ -34,7 +34,7 @@ twcc['married'] = (twcc.MARRIAGE==1).astype('int')
 
 A quick scan of the data shows the label/response variable for default is skewed about 75-25% in favor on non-default, which is very common. While this is actually a very high default rate, the response here is still considered imbalanced, which will have implications for how we measure the performance of our models. 
 
-![](images/defdq_value_counts_201811.PNG)
+<img src="images/defdq_value_counts_201811.PNG" width="300">
 
 In addition to one-hot encoding, we scale the continuous variables through the 'RobustScaler' package from `sklearn.preprocessing`. For illustration purposes, we will run a simple train-test split. To further ensure the robustness of the model, we would use k-fold cross validation (packages included above). 
 
@@ -48,7 +48,7 @@ x_train, x_test, y_train, y_test = TTS(X, Y, random_state=123, test_size=0.2, st
 
 After fitting logistic regression, naive Bayes, and a decision tree on default parameters, we compare the accuracy results.
 
-<img src="images/accuracy_scores1_201811.png" width="50"> 
+<img src="images/accuracy_scores1_201811.png" width="600"> 
 
 Here we can see logistic regression having the best accuracy and precision rates, while recall is highest under Naive Bayes. Options for tuning the the logistic regression and naive bayes are limited so we focus on tuning our Decision Tree model. 
 
@@ -71,7 +71,7 @@ mss_maxprauc = prauc_vals.loc[prauc_vals['prauc']==prauc_vals.prauc.max(),'ms_sp
 
 Graphing our PRAUC values against the number of splits yields, we see returns diminish as we increase the obsevations required for a split. 
 
-<img src="images/accuracy_scores1_201811.png" width="50"> 
+<img src="images/accuracy_scores1_201811.png" width="600"> 
 
 We repeat this loop for the other three paramaters, store the best value for each, then re-run the Decision Tree again. 
 
@@ -81,8 +81,8 @@ dec_mod = DecTree(min_samples_split=mss_maxprauc,min_samples_leaf=msl_maxprauc,
 ```
  This time the model well outperforms logistic regression and Naive Bayes. However, Naive Bayes still has better recall. 
  
- <img src = "images/accuracy_scores2_201811.png">
+ <img src="images/accuracy_scores2_201811.png" width="600">
  
 We can also illustrate the stronger performance of the tuned model with a precision-recall curve. 
 
-<img src = "images/prec_recall_dectreeNabyes_201811.png" width="50">
+<img src="images/prec_recall_dectreeNabyes_201811.png" width="600">
