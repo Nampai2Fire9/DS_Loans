@@ -52,4 +52,37 @@ After fitting logistic regression, naive Bayes, and a decision tree on default p
 
 Here we can see logistic regression having the best accuracy and precision rates, while recall is highest under Naive Bayes. Options for tuning the the logistic regression and naive bayes are limited so we focus on tuning our Decision Tree model. 
 
+The main parameters to adjust in the Decision Tree model are the minimum number of samples or observations required for a split (`min_samples_split`), the minimum number of samples on the resulting node after a split (`min_samples_leaf`), the maximum number of splits (`max_depth`), and the maximum number of fields used (`max_features`). Our goal is to select the best numbers to use for each parameter. Since the data is imbalanced, we are trying to maximize the area under the precision-recall curve (PRAUC). As an example, we run the below loop to tune the `min_samples_split`. 
 
+```
+ms_splits = np.linspace(0.01, 1, 100, endpoint=True); #array of values for min_sample_split parameter
+prauc_vals = []
+for ms in ms_splits:
+    dec_mod = DecTree(min_samples_split=ms, random_state=10)
+    dec_mod.fit(x_train, y_train) 
+    precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
+                                                   probas_pred = dec_mod.predict_proba(x_test)[:,1])
+    prauc = auc(recdec,precdec) 
+    prauc_vals.append([ms,prauc])
+
+prauc_vals = pd.DataFrame(prauc_vals, columns=['ms_splits','prauc']) 
+mss_maxprauc = prauc_vals.loc[prauc_vals['prauc']==prauc_vals.prauc.max(),'ms_splits'].values[0]
+```
+
+Graphing our PRAUC values against the number of splits yields, we see returns diminish as we increase the obsevations required for a split. 
+
+<img src="image/accuracy_scores1_201811.png" width="50"> 
+
+We repeat this loop for the other three paramaters, store the best value for each, then re-run the Decision Tree again. 
+
+```
+dec_mod = DecTree(min_samples_split=mss_maxprauc,min_samples_leaf=msl_maxprauc,
+                  max_depth=mxd_maxprauc,max_features=mxf_maxprauc, random_state=10) 
+```
+ This time the model well outperforms logistic regression and Naive Bayes. However, Naive Bayes still has better recall. 
+ 
+ <img src = "images/accuracy_scores2_201811.png" width=50)
+ 
+We can also illustrate the stronger performance of the tuned model with a precision-recall curve. 
+
+<img src = "images/prec_recall_dectreeNabyes_201811.png" width="50"
