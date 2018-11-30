@@ -32,6 +32,10 @@ twcc.rename(columns={'default.payment.next.month':'defdq'}, inplace=True)
 twcc['married'] = (twcc.MARRIAGE==1).astype('int')
 ```
 
+A quick scan of the data shows the label/response variable for default is skewed about 75-25% in favor on non-default, which is very common. While this is actually a very high default rate, the response here is still considered imbalanced, which will have implications for how we measure the performance of our models. 
+
+![defdq_value_counts_201811](https://user-images.githubusercontent.com/21150315/49296093-30f7ed80-f46c-11e8-99c2-cdd2cb3de8b9.PNG)
+
 In addition to one-hot encoding, we scale the continuous variables through the 'RobustScaler' package from `sklearn.preprocessing`. For illustration purposes, we will run a simple train-test split. To further ensure the robustness of the model, we would use k-fold cross validation (packages included above). 
 
 ```
