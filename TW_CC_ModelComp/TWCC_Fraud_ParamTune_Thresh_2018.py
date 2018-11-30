@@ -112,7 +112,9 @@ prauc_vals = []
 for ms in ms_splits:
     dec_mod = DecTree(min_samples_split=ms, random_state=10)
     dec_mod.fit(x_train, y_train) 
-    prauc = average_precision_score(y_true=y_test,y_score=dec_mod.predict_proba(x_test)[:,1])
+    precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
+                                                    probas_pred = dec_mod.predict_proba(x_test)[:,1])
+    prauc = auc(recdec,precdec)
     prauc_vals.append([ms,prauc])
 
 prauc_vals = pd.DataFrame(prauc_vals, columns=['ms_splits','prauc']) 
@@ -130,7 +132,9 @@ prauc_vals = []
 for ms in ms_leaf:
     dec_mod = DecTree(min_samples_leaf=ms, random_state=10)
     dec_mod.fit(x_train, y_train) 
-    prauc = average_precision_score(y_true=y_test,y_score=dec_mod.predict_proba(x_test)[:,1])
+    precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
+                                                    probas_pred = dec_mod.predict_proba(x_test)[:,1])
+    prauc = auc(recdec,precdec)
     prauc_vals.append([ms,prauc])
 
 prauc_vals = pd.DataFrame(prauc_vals, columns=['ms_leaf','prauc']) 
@@ -148,7 +152,9 @@ prauc_vals = []
 for md in max_depth:
     dec_mod = DecTree(max_depth=md, random_state=10)
     dec_mod.fit(x_train, y_train) 
-    prauc = average_precision_score(y_true=y_test,y_score=dec_mod.predict_proba(x_test)[:,1])
+    precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
+                                                    probas_pred = dec_mod.predict_proba(x_test)[:,1])
+    prauc = auc(recdec,precdec)
     prauc_vals.append([md,prauc])
 
 prauc_vals = pd.DataFrame(prauc_vals, columns=['max_depth','prauc']) 
@@ -168,7 +174,9 @@ prauc_vals = []
 for mx in max_features:
     dec_mod = DecTree(max_features=mx, random_state=10)
     dec_mod.fit(x_train, y_train) 
-    prauc = average_precision_score(y_true=y_test,y_score=dec_mod.predict_proba(x_test)[:,1])
+    precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
+                                                    probas_pred = dec_mod.predict_proba(x_test)[:,1])
+    prauc = auc(recdec,precdec)
     prauc_vals.append([mx,prauc])
 
 prauc_vals = pd.DataFrame(prauc_vals, columns=['max_features','prauc']) 
@@ -187,6 +195,7 @@ accdec, precdec, recdec, CMdec = accuracystats_ypred(y_pred_dec, y_test)
 metrics.loc['accuracy','dec'] = accdec
 metrics.loc['precision','dec'] = precdec
 metrics.loc['recall','dec'] = recdec
+
 
 # tuned up Decision Tree has higher accuracy and precision, while nbayes has better recall. compare precision_recall graphs 
 precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
@@ -222,5 +231,4 @@ y_pred_thresh = (y_pred_proba >= 0.2).astype('int')   #returns arrays of 1s or 0
 accdec, precdec, recdec, CMdec = accuracystats_ypred(y_pred_dec, y_test)
 accdec, precdec, recdec, CMdec          #similar scores to optimized model with no threshold. 
 
-    
-
+  
