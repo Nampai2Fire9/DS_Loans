@@ -1,4 +1,4 @@
-# Decision Tree and paramter tuning on Taiwan Credit Card Fraud 
+# Decision Tree and parameter tuning on Taiwan Credit Card Fraud 
 Simple paramter tuning on Decision Tree. show difference vs. Logistic Regression & Naive Bayes 
 Data Used: 
 - Source: https://archive.ics.uci.edu/ml/datasets/default+of+credit+card+clients
