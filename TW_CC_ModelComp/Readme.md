@@ -87,3 +87,10 @@ dec_mod = DecTree(min_samples_split=mss_maxprauc,min_samples_leaf=msl_maxprauc,
 We can also illustrate the stronger performance of the tuned model with a precision-recall curve. 
 
 <img src="images/prec_recall_dectreeNabyes_201811.png" width="600">
+
+
+## Logistic Regression Threshold:
+
+As a final check against the tuned Decision Tree, we now see if we can improve the accuracy of Logistic Regression through better selection of the threshold. Simple way to do this would be a comparison of the precision and recall against threshold to see roughly where they converge.
+
+<img src="images/threshold_prec_rec_LogReg.png" width="600"> 
