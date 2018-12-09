@@ -104,4 +104,8 @@ ypred_lr2 = (ypred_lr2>=0.2).astype('int')
 
 This results in a reduction in total accuracy from close to 81.9% to 76.7%, but a sizeable increase in recall from 32.5% to 59.2% As a result, the AUC under the ROC curve jumps from 64.2% to 70.4%. Thus, the logistic regression model with the adjusted threshold is also a viable model compared to the tuned Decision tree.
 
+<img src="images/accuracy_scoresLR020_201811.png" width="600"> 
+
 This example represents a sample tuning of one model and comparing it against two other models. Next steps in a typical research environment would be further tuning of the models covered here and other models, and cross validating across multiple layers or folds. 
+
+ 
