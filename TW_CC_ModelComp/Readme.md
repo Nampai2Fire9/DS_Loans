@@ -84,7 +84,7 @@ dec_mod = DecTree(min_samples_split=mss_maxprauc,min_samples_leaf=msl_maxprauc,
  
  <img src="images/accuracy_scores2_201811.png" width="600">
  
-We can also illustrate the stronger performance of the tuned model with a precision-recall curve. 
+We can also illustrate the stronger performance of the tuned model with a precision-recall curve. The standard ROC increases from 60.35% to 64.4% with tuning as well. 
 
 <img src="images/prec_recall_dectreeNabyes_201811.png" width="600">
 
@@ -94,3 +94,14 @@ We can also illustrate the stronger performance of the tuned model with a precis
 As a final check against the tuned Decision Tree, we now see if we can improve the accuracy of Logistic Regression through better selection of the threshold. Simple way to do this would be a comparison of the precision and recall against threshold to see roughly where they converge.
 
 <img src="images/threshold_prec_rec_LogReg.png" width="600"> 
+
+The curves intersect close to 0.2, so we use this as a starting point. We first update our predictions based on the new threshold: 
+
+```
+ypred_lr2 = lrmod.predict_proba(x_test)[:,1]
+ypred_lr2 = (ypred_lr2>=0.2).astype('int')
+```
+
+This results in a reduction in total accuracy from close to 81.9% to 76.7%, but a sizeable increase in recall from 32.5% to 59.2% As a result, the AUC under the ROC curve jumps from 64.2% to 70.4%. Thus, the logistic regression model with the adjusted threshold is also a viable model compared to the tuned Decision tree.
+
+This example represents a sample tuning of one model and comparing it against two other models. Next steps in a typical research environment would be further tuning of the models covered here and other models, and cross validating across multiple layers or folds. 
