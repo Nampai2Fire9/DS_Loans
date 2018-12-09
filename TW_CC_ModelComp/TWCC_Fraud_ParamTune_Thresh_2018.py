@@ -27,7 +27,7 @@ twcc['gradschool'] = (twcc.EDUCATION==1).astype('int')
 twcc['university'] = (twcc.EDUCATION==2).astype('int')
 twcc['highschool'] = (twcc.EDUCATION==3).astype('int')
 twcc['married'] = (twcc.MARRIAGE==1).astype('int')
-twcc.drop(['SEX','EDUCATION','MARRIAGE'], axis=1, inplace=True) 
+twcc.drop(['SEX','EDUCATION','MARRIAGE'], axis=1, inplace=True) ; twcc.columns
 
 pmt_list = ['PAY_0','PAY_2','PAY_3','PAY_4','PAY_5','PAY_6']
 for pmt in pmt_list:
@@ -37,11 +37,13 @@ metrics = pd.DataFrame(index=['accuracy','precision','recall'],
                        columns=['lr','dec','nb'])
 
 from sklearn.model_selection import train_test_split as TTS
-from sklearn.metrics import auc, accuracy_score, precision_score, recall_score, average_precision_score, roc_auc_score, confusion_matrix, precision_recall_curve
+from sklearn.metrics import auc, accuracy_score, precision_score, recall_score, average_precision_score, roc_auc_score, roc_curve, confusion_matrix, precision_recall_curve
 from sklearn.preprocessing import RobustScaler  #scales different variables to be comparable. 
 from sklearn.linear_model import LinearRegression as LinReg, LogisticRegression as LogReg
 from sklearn.tree import DecisionTreeClassifier as DecTree
+from sklearn.ensemble import RandomForestClassifier as RFC, GradientBoostingClassifier as GBC, AdaBoostClassifier as ABC
 from sklearn.naive_bayes import GaussianNB
+from sklearn import svm
 from sklearn.cross_validation import cross_val_predict, cross_val_score, KFold 
 
 X = twcc.drop('defdq', axis=1)
@@ -67,12 +69,14 @@ def accuracystats_ypred(ypred,y_test):
     return acc, prec, recall, CM
 
  # fit Decision Tree model with no parameters
-dec_mod = DecTree(random_state=10) 
-dec_mod.fit(x_train,y_train)
-y_pred_dec = dec_mod.predict(x_test)
+dec_mod1 = DecTree(random_state=10) 
+dec_mod1.fit(x_train,y_train)
+y_pred_dec = dec_mod1.predict(x_test)
 
     # grab accuracy stats and populate metrics table 
 accdec, precdec, recdec, CMdec = accuracystats_ypred(y_pred_dec, y_test)
+fpr, tpr, thresh = roc_curve(y_test, y_pred_dec)
+print("AUC is %s" % "{0:.3%}".format(auc(fpr,tpr)))
 metrics.loc['accuracy','dec'] = accdec
 metrics.loc['precision','dec'] = precdec
 metrics.loc['recall','dec'] = recdec
@@ -102,7 +106,8 @@ fig, ax = plt.subplots(figsize=(8,5))
 metrics.plot(kind='barh',ax=ax, fontsize=30)
 ax.legend(fontsize=30)
 ax.grid
-# Logistic Regression has best accuracy and precision. 
+
+# See the Logistic Regression has best accuracy and precision. 
 
 # Parameter Tuning: Compared to LR & NB, DecTree lends itself best to Paramter tuning. 
 n_x = len(X)  # grab no. of obs. 
@@ -112,18 +117,20 @@ prauc_vals = []
 for ms in ms_splits:
     dec_mod = DecTree(min_samples_split=ms, random_state=10)
     dec_mod.fit(x_train, y_train) 
+    # prauc = average_precision_score(y_true=y_test,y_score=dec_mod.predict_proba(x_test)[:,1])
     precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
-                                                    probas_pred = dec_mod.predict_proba(x_test)[:,1])
-    prauc = auc(recdec,precdec)
+                                                   probas_pred = dec_mod.predict_proba(x_test)[:,1])
+    prauc = auc(recdec,precdec) 
     prauc_vals.append([ms,prauc])
 
 prauc_vals = pd.DataFrame(prauc_vals, columns=['ms_splits','prauc']) 
+        #store best min_samples_split value. use 'values' to store in np array (to remove the index)
 mss_maxprauc = prauc_vals.loc[prauc_vals['prauc']==prauc_vals.prauc.max(),'ms_splits'].values[0]; mss_maxprauc   
   
 fig,ax=plt.subplots(figsize=(8,5))
 ax.plot(prauc_vals.ms_splits, prauc_vals.prauc, label='DecTree Min Sample Splits')
-ax.set_xlabel('minimum sample splits')
-ax.set_ylabel('Precision Recall AUC')
+ax.set_xlabel('minimum sample splits', fontsize=15)
+ax.set_ylabel('Precision Recall AUC', fontsize=15)
 ax.legend()
 
     #loop through min_sample_leafs
@@ -132,9 +139,10 @@ prauc_vals = []
 for ms in ms_leaf:
     dec_mod = DecTree(min_samples_leaf=ms, random_state=10)
     dec_mod.fit(x_train, y_train) 
+    # prauc = average_precision_score(y_true=y_test,y_score=dec_mod.predict_proba(x_test)[:,1])
     precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
-                                                    probas_pred = dec_mod.predict_proba(x_test)[:,1])
-    prauc = auc(recdec,precdec)
+                                                   probas_pred = dec_mod.predict_proba(x_test)[:,1])
+    prauc = auc(recdec,precdec) 
     prauc_vals.append([ms,prauc])
 
 prauc_vals = pd.DataFrame(prauc_vals, columns=['ms_leaf','prauc']) 
@@ -152,9 +160,10 @@ prauc_vals = []
 for md in max_depth:
     dec_mod = DecTree(max_depth=md, random_state=10)
     dec_mod.fit(x_train, y_train) 
+    #prauc = average_precision_score(y_true=y_test,y_score=dec_mod.predict_proba(x_test)[:,1])
     precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
-                                                    probas_pred = dec_mod.predict_proba(x_test)[:,1])
-    prauc = auc(recdec,precdec)
+                                                   probas_pred = dec_mod.predict_proba(x_test)[:,1])
+    prauc = auc(recdec,precdec) 
     prauc_vals.append([md,prauc])
 
 prauc_vals = pd.DataFrame(prauc_vals, columns=['max_depth','prauc']) 
@@ -174,9 +183,10 @@ prauc_vals = []
 for mx in max_features:
     dec_mod = DecTree(max_features=mx, random_state=10)
     dec_mod.fit(x_train, y_train) 
+    #prauc = average_precision_score(y_true=y_test,y_score=dec_mod.predict_proba(x_test)[:,1])
     precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
-                                                    probas_pred = dec_mod.predict_proba(x_test)[:,1])
-    prauc = auc(recdec,precdec)
+                                                   probas_pred = dec_mod.predict_proba(x_test)[:,1])
+    prauc = auc(recdec,precdec) 
     prauc_vals.append([mx,prauc])
 
 prauc_vals = pd.DataFrame(prauc_vals, columns=['max_features','prauc']) 
@@ -190,26 +200,40 @@ dec_mod = DecTree(min_samples_split=mss_maxprauc,min_samples_leaf=msl_maxprauc,
 dec_mod.fit(x_train,y_train)
 y_pred_dec = dec_mod.predict(x_test)
 
-    # update metrics table w/ new accuracy scores
-accdec, precdec, recdec, CMdec = accuracystats_ypred(y_pred_dec, y_test)
+    # grab accuracy stats and populate metrics table 
+accdec, precdec, recdec, CMdec = accuracystats_ypred(y_pred_dec, y_test); accdec, precdec, recdec, CMdec
 metrics.loc['accuracy','dec'] = accdec
 metrics.loc['precision','dec'] = precdec
 metrics.loc['recall','dec'] = recdec
-
 
 # tuned up Decision Tree has higher accuracy and precision, while nbayes has better recall. compare precision_recall graphs 
 precdec, recdec, threshdec = precision_recall_curve(y_true = y_test,
                                                     probas_pred = dec_mod.predict_proba(x_test)[:,1])
 precnb, recnb, threshnb = precision_recall_curve(y_true = y_test,
                                                     probas_pred = nbmod.predict_proba(x_test)[:,1])
+preclr, reclr, threshlr = precision_recall_curve(y_true = y_test,
+                                                    probas_pred = lrmod.predict_proba(x_test)[:,1])
 decprauc = auc(recdec,precdec); decprauc  # decprauc = average_precision_score(y_true=y_test, y_score=dec_mod.predict_proba(x_test)[:,1]) shows average precision, but not auc
 decprtxt = ("DecTree AUC: %s" % "{0:.3%}").format(decprauc); decprtxt
 nbprauc = auc(recnb, precnb); nbprauc  #nbprauc = average_precision_score(y_true=y_test,y_score=nbmod.predict_proba(x_test)[:,1]) only shows average precision, but not auc
 nbprtxt = ("NaiveBayes AUC is %s" % "{0:.3%}").format(nbprauc); nbprtxt
+lrprauc = average_precision_score(y_true=y_test,y_score=lrmod.predict_proba(x_test)[:,1])  
+#lrprauc = auc(reclr, preclr); lrprauc
+lrprtxt = ("Logistic Regression AUC is %s" % "{0:.3%}").format(lrprauc); lrprtxt
 
+    # Compare Precision-Recall Naive Bayes vs. tuned DecTree
 fig,ax=plt.subplots(figsize=(8,5))
 ax.plot(recdec, precdec, label=decprtxt)
 ax.plot(recnb, precnb, label=nbprtxt)
+ax.set_xlabel('Recall', fontsize=15)
+ax.set_ylabel('Precision', fontsize=15)
+ax.set_title("Precision-Recall Curve: DecTree vs NBayes", fontsize=30)
+ax.legend(fontsize=15)
+ax.grid
+    # Compare Precision-Recall Logistics vs. tuned DecTree
+fig,ax=plt.subplots(figsize=(8,5))
+ax.plot(recdec, precdec, label=decprtxt)
+ax.plot(reclr, preclr, label=nbprtxt)
 ax.set_xlabel('Recall', fontsize=15)
 ax.set_ylabel('Precision', fontsize=15)
 ax.set_title("Precision-Recall Curve: DecTree vs NBayes", fontsize=30)
@@ -225,10 +249,50 @@ ax.set_xlabel('Classification Threshold', fontsize=15)
 ax.set_ylabel('Precision/Recall',fontsize=15)
 ax.legend(fontsize=15)
 ax.grid
-    # crossing appears close to 0.2. compute new y_pred with new threshold 
-y_pred_proba = dec_mod.predict_proba(x_test)[:,1]
-y_pred_thresh = (y_pred_proba >= 0.2).astype('int')   #returns arrays of 1s or 0s depending on if greater than 0.2
+
 accdec, precdec, recdec, CMdec = accuracystats_ypred(y_pred_dec, y_test)
 accdec, precdec, recdec, CMdec          #similar scores to optimized model with no threshold. 
 
-  
+    # compute new y_pred with new threshold 
+y_pred_dec2 = dec_mod.predict_proba(x_test)[:,1]
+y_pred_dec2 = (y_pred_dec2 >= 0.2).astype('int')   #returns arrays of 1s or 0s depending on if greater than 0.2
+accdec2, precdec2, recdec2, CMdec2 = accuracystats_ypred(y_pred_dec2, y_test)
+accdec2, precdec2, recdec2,   CMdec2
+    # check auc roc
+fprd2, tprd2, threshd2 = roc_curve(y_test, y_pred_dec2)
+print("AUC is %s" % "{0:.3%}".format(auc(fprd2,tprd2)))
+
+
+
+# Logistic Regression: Improve accuracy by selecting threshold 
+    # graph thresholds for Logistic Regression
+fix, ax = plt.subplots(figsize=(8,5))
+ax.plot(threshlr, preclr[1:], label='Precision LogReg')
+ax.plot(threshlr, reclr[1:], label='Recall LogReg')
+ax.set_xlabel('Classification Threshold', fontsize=30)
+ax.set_ylabel('Precision/Recall LogReg', fontsize=30)
+ax.set_title('Threshold vs. Precison/Recall', fontsize=30)
+ax.legend(fontsize=30)
+ax.grid
+
+    # convergence close to threshold of 0.2. check accuracy at threshold of 0.2 
+ypred_lr2 = lrmod.predict_proba(x_test)[:,1]
+ypred_lr2 = (ypred_lr2>=0.2).astype('int')
+acclr2, preclr2, reclr2, CMlr2 = accuracystats_ypred(ypred_lr2, y_test)
+
+metrics.loc['accuracy','lr'] = acclr
+metrics.loc['precision','lr'] = preclr
+metrics.loc['recall','lr'] = reclr
+
+# compare scores across models
+fig, ax = plt.subplots(figsize=(8,5))
+metrics.plot(kind='barh',ax=ax, fontsize=30)
+ax.legend(fontsize=30)
+ax.grid
+
+fprl, tprl, threshl = roc_curve(y_test, y_pred_lr)
+print("AUC is %s" % "{0:.3%}".format(auc(fprl,tprl)))
+fprl2, tprl2, threshl2 = roc_curve(y_test, ypred_lr2)
+print("AUC is %s" % "{0:.3%}".format(auc(fprl2,tprl2)))
+
+
