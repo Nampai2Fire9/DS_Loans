@@ -72,7 +72,7 @@ mss_maxprauc = prauc_vals.loc[prauc_vals['prauc']==prauc_vals.prauc.max(),'ms_sp
 
 Graphing our PRAUC values against the number of splits yields, we see returns diminish as we increase the obsevations required for a split. 
 
-<img src="images/accuracy_scores1_201811.png" width="600"> 
+<img src="images/min_samples_split_image_201811.png" width="600"> 
 
 We repeat this loop for the other three paramaters, store the best value for each, then re-run the Decision Tree again. 
 
