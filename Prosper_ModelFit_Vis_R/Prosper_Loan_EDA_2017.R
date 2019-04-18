@@ -425,7 +425,7 @@ for (i in 1:num_cont) {
 }
 pbiserial = as.data.frame(pbiserial)
 colnames(pbiserial) = c('Field','Point_Biserial_Correlation')
-pbiserial$Point_Biserial_Correlation = as.numeric(pbiserial$Point_Biserial_Correlation)
+pbiserial$Point_Biserial_Correlation = as.numeric(as.character(pbiserial$Point_Biserial_Correlation))
 # Bar plot of correlations 
 ggplot(pbiserial, aes(x=Field, y=Point_Biserial_Correlation, fill=Field)) + 
   geom_bar(stat='identity') + coord_flip() + 
